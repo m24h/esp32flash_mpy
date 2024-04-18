@@ -1,0 +1,5 @@
+data, nvs, 0x9000, 0x6000, nvs, 
+data, phy, 0xf000, 0x1000, phy_init, 
+app, factory, 0x10000, 0x1f0000, factory, 
+data, fat, 0x200000, 0x100000, vfs, 
+data, undefined, 0x300000, 0x100000, bin, 
