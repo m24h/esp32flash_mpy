@@ -3,7 +3,7 @@ A module to access flash memory directly using MMU, with partition tools and fil
 
 ## flash.py
 
-It is impossible to access flash memory by using machine.memXX[] function, because the memory mapping is not fixed and linear in ESP32. 
+It is impossible to access flash memory by using machine.memXX function, because the memory mapping is not fixed and linear in ESP32. 
 
 So if you have a lot of const data which is needed to be accessed, you have to choose file system and access it in block device mode. That is so inefficient and slow for random access needs.
 
@@ -12,6 +12,11 @@ This module will modify the memory mapping table when it is imported and provide
 This module also provides class and function to access different flash data block on a divided data partition. Following script will help you to change partition on ESP32, and to pack files together for downloading.
 
 This module currently support ESP32C3 only, but it is easy to support other ESP32 chips by modifying some parameters inside the module. The parameters include MMU table address, number of entries, start virtual address, etc.
+
+Install:
+```bash
+mpremote mip install github:m24h/esp32flash_mpy
+```
 
 Examples:
 ```python
