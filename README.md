@@ -3,7 +3,7 @@ A module to access flash memory directly using MMU, with partition tools and fil
 
 ## flash.py
 
-It is impossible to access flash memory by using machine.memXX function, because the memory mapping is not fixed and linear in ESP32. 
+It is impossible to access flash memory by using machine.memXX function, because the memory mapping is not fixed and or in ESP32. 
 
 So if you have a lot of const data which is needed to be accessed, you have to choose file system and access it in block device mode. That is so inefficient and slow for random access needs.
 
@@ -11,7 +11,7 @@ This module will modify the memory mapping table when it is imported and provide
 
 This module also provides class and function to access different flash data block on a divided data partition. Following script will help you to change partition on ESP32, and to pack files together for downloading.
 
-This module currently support ESP32C3 only, but it is easy to support other ESP32 chips by modifying some parameters inside the module. The parameters include MMU table address, number of entries, start virtual address, etc.
+This module currently support ESP32C3/ESP32S2 only, but it is easy to support other ESP32 chips by modifying some parameters inside the module. The parameters include MMU table address, number of entries, starting virtual address, etc.
 
 Install:
 ```bash
@@ -26,7 +26,7 @@ a=flash.mem32(0x10)
 b=flash.bin.mem32(34)
 file1=flash.bin.findsub('eng5X8')
 c=file1.mem32(10)
-d=file1.findsubn('some')
+d=file1.findsub('some')
 ```
 
 ## How to make a partition devided
@@ -35,21 +35,31 @@ It is needed to devide a partition from micropython's VFS file system, to store 
 
 The first thing to do is changing partition table before first time running micropython after it is downloaded to the board. Or micropython will automatically format the file system on its first time running, but the partition table will be changed at future. 
 
-So, after downloading micropython, do not reset the system, but use esptool.py (pip install esptool) to get the old partion table, which located at address 0x8000, with length 0xc00.
+So, after downloading micropython, do not reset the system, but use esptool (pip install esptool) to get the old partion table in bootloarder mode (reset with BOOT0 button pressed), which located at address 0x8000, with length 0xc00.
 
 ```sh
-python -m esptool -p <port> read_flash 0x8000 0xc00 par.bin
+python -m esptool -p <port> read-flash 0x8000 0xc00 par.bin
 ```
 
 Convert it to CSV format by provided script par_bin2csv.py .
 ```sh
 python par_bin2csv.py par.bin > par.csv
 ```
-In fact, you can get the old partition table from micropython .bin firmware directly, skip last steps, just do this.
+In fact, you can get the old partition table from micropython .bin firmware directly, skip last steps, just do this. 
 ```sh
-python par_bin2csv.py firmware.bin 0x8000 > par.csv
+python par_bin2csv.py firmware_ESP32C3.bin 0x8000 > par.csv
+python par_bin2csv.py firmware_ESP32S2.bin 0x7000 > par.csv
 ```
 You can modify the CSV file, to change the size of last data partition, and to add a new data partition, like this.
+
+Original (Micropython uses 2MB, and VFS uses the remaining space):
+```
+data, nvs, 0x9000, 0x6000, nvs, 
+data, phy, 0xf000, 0x1000, phy_init, 
+app, factory, 0x10000, 0x1f0000, factory, 
+```
+
+Modified (VFS uses 1MB, and const data use the remaining 1MB):
 ```
 data, nvs, 0x9000, 0x6000, nvs, 
 data, phy, 0xf000, 0x1000, phy_init, 
@@ -57,14 +67,22 @@ app, factory, 0x10000, 0x1f0000, factory,
 data, fat, 0x200000, 0x100000, vfs, 
 data, undefined, 0x300000, 0x100000, bin, 
 ```
+
 Then convert the CSV file back to binary format.
 ```sh
 python par_csv2bin.py par.csv par.bin
 ```
-And download it to ESP32 board.
+
+And download it to ESP32 board in bootloarder mode.
 ```sh
-python -m esptool -p <port> write_flash 0x8000 par.bin
+python -m esptool -p <port> write-flash 0x8000 par.bin
 ```
+
+Maybe you should need to reformat the FAT system
+```
+mpremote exec "__import__('vfs').VfsFat.mkfs(__import__('flashbdev').bdev)"
+```
+
 Reset the board, micropython will use the first partition with label 'vfs', and you can treat the sencond partition as a big RODATA segment.
 
 ## How to packing data files
